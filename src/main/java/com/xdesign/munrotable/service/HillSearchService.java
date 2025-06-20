@@ -16,7 +16,6 @@ public class HillSearchService {
 
     private final HillDataLoader loader;
 
-
     public HillSearchService(HillDataLoader loader) {
         this.loader = loader;
     }
@@ -32,7 +31,7 @@ public class HillSearchService {
     }
 
     private Comparator<Hill> buildComparator(HillSearchRequest request) {
-        Comparator<Hill> comparator = Comparator.comparingInt(h -> 0); // neutral comparator
+        Comparator<Hill> comparator = Comparator.comparingInt(h -> 0); // неутрален comparator
 
         for (Sort sort : request.sorts()) {
             Comparator<Hill> fieldComparator;
