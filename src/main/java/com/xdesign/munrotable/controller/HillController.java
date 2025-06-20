@@ -1,20 +1,16 @@
 package com.xdesign.munrotable.controller;
 
+import com.xdesign.munrotable.dto.HillSearchRequest;
+import com.xdesign.munrotable.dto.HillSearchRequestFactory;
 import com.xdesign.munrotable.model.Hill;
 import com.xdesign.munrotable.service.HillSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
-import static com.xdesign.munrotable.dto.HillSearchRequestFactory.newRequest;
 
 @RestController
 @RequestMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -24,19 +20,20 @@ public class HillController {
 
     private final HillSearchService hillSearchService;
 
+
     public HillController(HillSearchService hillSearchService) {
         this.hillSearchService = hillSearchService;
     }
 
-    @GetMapping(path = "/hills")
-    public List<Hill> findHills(
-        @RequestParam(name = "category", required = false) String category,
-        @RequestParam(name = "minHeight", required = false) Double minHeight,
-        @RequestParam(name = "maxHeight", required = false) Double maxHeight,
-        @RequestParam(name = "sort", required = false) List<String> sortCriteria,
-        @RequestParam(name = "limit", defaultValue = "1000") int limit
-    ) {
-        var request = newRequest(category, minHeight, maxHeight, sortCriteria, limit);
+    @GetMapping(value = "/hills", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<Hill> getHills(
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Double minHeight,
+            @RequestParam(required = false) Double maxHeight,
+            @RequestParam(required = false) List<String> sort,
+            @RequestParam(required = false, defaultValue = "1000") int limit) {
+
+        HillSearchRequest request = HillSearchRequestFactory.newRequest(category, minHeight, maxHeight, sort, limit);
         return hillSearchService.searchHills(request);
     }
 

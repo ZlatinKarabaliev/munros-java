@@ -4,120 +4,54 @@ import com.xdesign.munrotable.model.Hill;
 import org.apache.commons.lang3.Validate;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
-import static java.util.stream.Collectors.counting;
-import static java.util.stream.Collectors.groupingBy;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public final class HillSearchRequestFactory {
 
-    private HillSearchRequestFactory() { /* Non-instantiable class */ }
+    private HillSearchRequestFactory() {}
 
     public static HillSearchRequest newRequest(
-        String category,
-        Double minHeight,
-        Double maxHeight,
-        List<String> sortCriteria,
-        int limit
-    ) {
-        Validate.isTrue(limit > 0, "Limit must be greater than zero; found [%d]", limit);
-        validateHeightBracket(minHeight, maxHeight);
+            String category,
+            Double minHeight,
+            Double maxHeight,
+            List<String> sortCriteria,
+            int limit) {
 
-        var hillCategory = parseCategory(category);
-        var sorts = createSorts(sortCriteria);
+        Validate.isTrue(limit > 0, "Limit must be greater than zero");
+
+        Hill.Category hillCategory = null;
+        if (category != null && !category.isBlank()) {
+            hillCategory = Hill.Category.valueOf(category.trim().toUpperCase());
+        }
+
+        List<Sort> sorts = emptyList();
+        if (sortCriteria != null && !sortCriteria.isEmpty()) {
+            sorts = sortCriteria.stream()
+                    .map(HillSearchRequestFactory::parseSort)
+                    .collect(Collectors.toList());
+        }
+
         return new HillSearchRequestImpl(hillCategory, minHeight, maxHeight, sorts, limit);
     }
 
-    private static Hill.Category parseCategory(String categoryStr) {
-        if (isBlank(categoryStr)) {
-            return null;
-        }
-
-        try {
-            var normalizedCategory = categoryStr.trim().toUpperCase();
-            return Hill.Category.valueOf(normalizedCategory);
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Unknown Category [%s]".formatted(categoryStr), ex);
-        }
-    }
-
-    private static List<Sort> createSorts(List<String> sortCriteria) {
-        if (sortCriteria == null) {
-            return emptyList();
-        }
-
-        var sorts = sortCriteria.stream()
-            .map(HillSearchRequestFactory::parseSort)
-            .toList();
-
-        var duplicateSortFields = findDuplicateSortFields(sorts);
-        if (!duplicateSortFields.isEmpty()) {
-            var duplicateFields = duplicateSortFields.stream()
-                .map(SortField::toString)
-                .collect(Collectors.joining(", "));
-            throw new IllegalArgumentException("Duplicate sort criteria found for fields named [%s]".formatted(
-                duplicateFields));
-        }
-
-        return sorts;
-    }
-
     private static Sort parseSort(String criterion) {
-        Validate.isTrue(criterion.contains("_"), "Sort parameter format is 'fieldName_order'. Found [%s]", criterion);
-
-        var parts = criterion.split("_", 2);
-        SortField sortField;
-        SortOrder sortOrder;
-
-        try {
-            sortField = SortField.valueOf(parts[0].trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("[%s] is not a sortable field".formatted(parts[0]));
+        String[] parts = criterion.split("_");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Invalid sort format: " + criterion);
         }
 
-        try {
-            sortOrder = SortOrder.valueOf(parts[1].trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Unknown sort order [%s]".formatted(parts[1]));
-        }
+        SortField field = SortField.valueOf(parts[0].toUpperCase());
+        SortOrder order = SortOrder.valueOf(parts[1].toUpperCase());
 
-        return new Sort(sortField, sortOrder);
+        return new Sort(field, order);
     }
 
-    private static List<SortField> findDuplicateSortFields(List<Sort> sorts) {
-        return sorts.stream()
-            .collect(groupingBy(Sort::field, counting()))
-            .entrySet()
-            .stream()
-            .filter(entry -> entry.getValue() > 1)
-            .map(Map.Entry::getKey)
-            .toList();
+    private record HillSearchRequestImpl(Hill.Category category,
+                                         Double minHeight,
+                                         Double maxHeight,
+                                         List<Sort> sorts,
+                                         int limit) implements HillSearchRequest {
     }
-
-    private static void validateHeightBracket(
-        Double minHeight,
-        Double maxHeight
-    ) {
-        if (minHeight != null && minHeight < 0) {
-            throw new IllegalArgumentException("minHeight must be greater than zero; found [%.1f]".formatted(minHeight));
-        }
-        if (maxHeight != null && maxHeight < 0) {
-            throw new IllegalArgumentException("maxHeight must be greater than zero; found [%.1f]".formatted(maxHeight));
-        }
-        if (minHeight != null && maxHeight != null) {
-            Validate.isTrue(minHeight <= maxHeight, "minHeight must be less than or equal to maxHeight");
-        }
-    }
-
-    private record HillSearchRequestImpl(
-        Hill.Category category,
-        Double minHeight,
-        Double maxHeight,
-        List<Sort> sorts,
-        int limit
-    ) implements HillSearchRequest { }
-
 }
