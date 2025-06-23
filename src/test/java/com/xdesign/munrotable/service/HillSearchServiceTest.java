@@ -1,117 +1,124 @@
 package com.xdesign.munrotable.service;
 
 import com.xdesign.munrotable.dto.HillSearchRequest;
-import com.xdesign.munrotable.dto.HillSearchRequestFactory;
-import com.xdesign.munrotable.loader.HillDataLoader;
+import com.xdesign.munrotable.factory.HillDataSourceFactory;
+import com.xdesign.munrotable.factory.HillSearchRequestFactory;
+import com.xdesign.munrotable.loader.HillDataSource;
 import com.xdesign.munrotable.model.Hill;
+import com.xdesign.munrotable.model.Hill.Category;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
-class HillSearchServiceUnitTest {
+class HillSearchServiceTest {
 
-    @Mock
-    HillDataLoader hillDataLoader;
-
-    HillSearchService hillSearchService;
+    private HillSearchService service;
+    private HillDataSourceFactory factory;
+    private HillDataSource dataSource;
 
     @BeforeEach
     void setUp() {
-        hillSearchService = new HillSearchService(hillDataLoader);
+        factory = mock(HillDataSourceFactory.class);
+        dataSource = mock(HillDataSource.class);
+        when(factory.getActiveDataSource()).thenReturn(dataSource);
+        service = new HillSearchService(factory);
+    }
+
+    private void setMockedHills(List<Hill> hills) {
+        when(dataSource.loadHills()).thenReturn(hills);
+    }
+
+    private HillSearchRequest request(String category, Double minHeight, Double maxHeight, List<String> sorts, int limit) {
+        return HillSearchRequestFactory.newRequest(category, minHeight, maxHeight, sorts, limit);
     }
 
     @Test
-    void testSearchWithCategoryFilter() {
-        Hill hill1 = new Hill("Hill A", 1000.0, "GR1", Hill.Category.MUNRO);
-        Hill hill2 = new Hill("Hill B", 800.0, "GR2", Hill.Category.TOP);
-        Hill hill3 = new Hill("Hill C", 1200.0, "GR3", Hill.Category.MUNRO);
+    void shouldReturnAllHillsWhenNoFiltersApplied() {
+        setMockedHills(List.of(
+                new Hill("A", 100.0, "NN12", Category.MUNRO),
+                new Hill("B", 200.0, "NN13", Category.TOP)
+        ));
 
-        when(hillDataLoader.loadHills()).thenReturn(List.of(hill1, hill2, hill3));
+        List<Hill> result = service.searchHills(request(null, null, null, List.of(), 10));
 
-        HillSearchRequest request = HillSearchRequestFactory.newRequest(
-                "MUNRO",
-                null,
-                null,
-                List.of(),
-                10
-        );
-
-        List<Hill> results = hillSearchService.searchHills(request);
-
-        assertThat(results).containsExactlyInAnyOrder(hill1, hill3);
-        assertThat(results).allMatch(h -> h.category() == Hill.Category.MUNRO);
+        assertThat(result).hasSize(2);
     }
 
     @Test
-    void testSearchWithHeightRangeFilter() {
-        Hill hill1 = new Hill("Hill A", 1000.0, "GR1", Hill.Category.MUNRO);
-        Hill hill2 = new Hill("Hill B", 800.0, "GR2", Hill.Category.TOP);
-        Hill hill3 = new Hill("Hill C", 1200.0, "GR3", Hill.Category.MUNRO);
+    void shouldFilterByCategory() {
+        setMockedHills(List.of(
+                new Hill("A", 100.0, "NN12", Category.MUNRO),
+                new Hill("B", 200.0, "NN13", Category.TOP)
+        ));
 
-        when(hillDataLoader.loadHills()).thenReturn(List.of(hill1, hill2, hill3));
+        List<Hill> result = service.searchHills(request("MUNRO", null, null, List.of(), 10));
 
-        HillSearchRequest request = HillSearchRequestFactory.newRequest(
-                null,
-                850.0,
-                1100.0,
-                List.of(),
-                10
-        );
-
-        List<Hill> results = hillSearchService.searchHills(request);
-
-        assertThat(results).containsExactly(hill1);
-        assertThat(results).allMatch(h -> h.height() >= 850 && h.height() <= 1100);
+        assertThat(result).hasSize(1);
+        assertEquals("A", result.get(0).name());
     }
 
     @Test
-    void testSearchWithSorting() {
-        Hill hill1 = new Hill("Alpha", 1000.0, "GR1", Hill.Category.MUNRO);
-        Hill hill2 = new Hill("Beta", 800.0, "GR2", Hill.Category.TOP);
-        Hill hill3 = new Hill("Gamma", 1200.0, "GR3", Hill.Category.MUNRO);
+    void shouldFilterByHeightRange() {
+        setMockedHills(List.of(
+                new Hill("Low", 50.0, "NN12", Category.MUNRO),
+                new Hill("Mid", 150.0, "NN13", Category.MUNRO),
+                new Hill("High", 300.0, "NN14", Category.MUNRO)
+        ));
 
-        when(hillDataLoader.loadHills()).thenReturn(List.of(hill1, hill2, hill3));
+        List<Hill> result = service.searchHills(request("MUNRO", 100.0, 200.0, List.of(), 10));
 
-        HillSearchRequest request = HillSearchRequestFactory.newRequest(
-                null,
-                null,
-                null,
-                List.of("name_desc"),
-                10
-        );
-
-        List<Hill> results = hillSearchService.searchHills(request);
-
-        assertThat(results).containsExactly(hill3, hill2, hill1);
+        assertThat(result).hasSize(1);
+        assertEquals("Mid", result.get(0).name());
     }
 
     @Test
-    void testSearchWithLimit() {
-        Hill hill1 = new Hill("Hill A", 1000.0, "GR1", Hill.Category.MUNRO);
-        Hill hill2 = new Hill("Hill B", 800.0, "GR2", Hill.Category.TOP);
-        Hill hill3 = new Hill("Hill C", 1200.0, "GR3", Hill.Category.MUNRO);
+    void shouldApplyLimit() {
+        setMockedHills(List.of(
+                new Hill("H1", 100.0, "NN11", Category.MUNRO),
+                new Hill("H2", 110.0, "NN12", Category.MUNRO),
+                new Hill("H3", 120.0, "NN13", Category.MUNRO)
+        ));
 
-        when(hillDataLoader.loadHills()).thenReturn(List.of(hill1, hill2, hill3));
+        List<Hill> result = service.searchHills(request("MUNRO", null, null, List.of(), 2));
 
-        HillSearchRequest request = HillSearchRequestFactory.newRequest(
-                null,
-                null,
-                null,
-                List.of("height_desc"),
-                2
-        );
+        assertThat(result).hasSize(2);
+    }
 
-        List<Hill> results = hillSearchService.searchHills(request);
+    @Test
+    void shouldSortByNameDescending() {
+        setMockedHills(List.of(
+                new Hill("Alpha", 1000.0, "GR1", Category.MUNRO),
+                new Hill("Beta", 800.0, "GR2", Category.TOP),
+                new Hill("Gamma", 1200.0, "GR3", Category.MUNRO)
+        ));
 
-        assertThat(results).hasSize(2);
-        assertThat(results).containsExactly(hill3, hill1);
+        List<Hill> result = service.searchHills(request(null, null, null, List.of("name_desc"), 10));
+
+        assertThat(result)
+                .hasSize(3)
+                .extracting(Hill::name)
+                .containsExactly("Gamma", "Beta", "Alpha");
+    }
+
+    @Test
+    void shouldSortByNameThenHeight() {
+        setMockedHills(List.of(
+                new Hill("A", 100.0, "NN11", Category.MUNRO),
+                new Hill("A", 80.0, "NN12", Category.MUNRO),
+                new Hill("B", 200.0, "NN13", Category.MUNRO)
+        ));
+
+        List<Hill> result = service.searchHills(request("MUNRO", null, null, List.of("name_asc", "height_asc"), 10));
+
+        assertThat(result).hasSize(3);
+        assertEquals(80.0, result.get(0).height());
+        assertEquals(100.0, result.get(1).height());
+        assertEquals("B", result.get(2).name());
     }
 }

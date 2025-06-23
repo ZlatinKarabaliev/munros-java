@@ -1,5 +1,6 @@
 package com.xdesign.munrotable.dto;
 
+import com.xdesign.munrotable.factory.HillSearchRequestFactory;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

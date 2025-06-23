@@ -4,6 +4,6 @@ import com.xdesign.munrotable.model.Hill;
 
 import java.util.List;
 
-public interface HillDataLoader {
+public interface HillDataSource {
     List<Hill> loadHills();
 }

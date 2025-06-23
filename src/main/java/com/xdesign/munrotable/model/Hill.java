@@ -8,6 +8,7 @@ public record Hill(
 ) {
     public enum Category {
         MUNRO,
+        NONE,
         TOP
     }
 }

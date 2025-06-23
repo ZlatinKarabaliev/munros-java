@@ -1,5 +1,9 @@
-package com.xdesign.munrotable.dto;
+package com.xdesign.munrotable.factory;
 
+import com.xdesign.munrotable.dto.HillSearchRequest;
+import com.xdesign.munrotable.dto.Sort;
+import com.xdesign.munrotable.dto.SortField;
+import com.xdesign.munrotable.dto.SortOrder;
 import com.xdesign.munrotable.model.Hill;
 import org.apache.commons.lang3.Validate;
 
@@ -18,6 +22,10 @@ public final class HillSearchRequestFactory {
             Double maxHeight,
             List<String> sortCriteria,
             int limit) {
+
+        if (category != null && !category.equalsIgnoreCase("Munro") && !category.equalsIgnoreCase("Top")) {
+            throw new IllegalArgumentException("Invalid category: " + category);
+        }
 
         Validate.isTrue(limit > 0, "Limit must be greater than zero");
 
